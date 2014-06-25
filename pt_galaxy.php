@@ -57,9 +57,11 @@ class T_QUADRANT {
 
 class T_GALAXY {
 	var $map = array(array(), array());
+	var $initial_klingons;
 	var $total_klingons;
 	var $total_bases;
 	var $total_stars;
+	var $base_destroyed;
 
 	function __construct() {
 		for ($y = 0; $y < 8; $y++) {
@@ -76,86 +78,96 @@ class T_GALAXY {
 				$this->map[$x][$y]->Clear();
 			}
 		}
+		$this->initial_klingons = 0;
 		$this->total_klingons = $this->total_bases = $this->total_stars = 0;
+		$this->base_destroyed = false;
 	}
-	function AddKlingon($x, $y, $n)
+	function AddKlingon($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$q->SetKlingon($n);
 		$this->total_klingons += $n;
+		$this->initial_klingons = $this->total_klingons;
 	}
-	function AddBase($x, $y, $n)
+	function AddBase($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$q->SetBase($n);
 		$this->total_bases += $n;
 	}
-	function AddStar($x, $y, $n)
+	function AddStar($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$q->SetStar($n);
 		$this->total_stars += $n;
 	}
-	function DelKlingon($x, $y, $n)
+	function DelKlingon($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		debugecho("DelKlingon($qx, $qy)");
+		$q = $this->map[$qx][$qy];
 		$k = $q->GetKlingon() - $n;
 		$q->SetKlingon($k);
 		$this->total_klingons -= $n;
 	}
-	function DelBase($x, $y, $n)
+	function DelBase($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$k = $q->GetBase() - $n;
 		$q->SetBase($k);
 		$this->total_bases -= $n;
+		$this->base_destroyed = true;
 	}
-	function DelStar($x, $y, $n)
+	function DelStar($qx, $qy, $n = 1)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$k = $q->GetStar() - $n;
 		$q->SetStar($k);
 		$this->total_stars -= $n;
 	}
 
-	function Get($x, $y)
+	function Get($qx, $qy)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		return $q->Show(true);
 	}
-	function GetKlingon($x, $y)
+	function GetKlingon($qx, $qy)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		return $q->GetKlingon();
 	}
-	function GetBase($x, $y)
+	function GetBase($qx, $qy)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		return $q->GetBase();
 	}
-	function GetStar($x, $y)
+	function GetStar($qx, $qy)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		return $q->GetStar();
 	}
-	function Watched($x, $y)
+	function Watched($qx, $qy)
 	{
-		$q = $this->map[$x][$y];
+		$q = $this->map[$qx][$qy];
 		$q->SetStatus('1');
+	}
+
+	function IsCombatArea($qx, $qy)
+	{
+		return ($this->GetKlingon($qx, $qy) > 0);
 	}
 
 	function ShowMap($flag)
 	{
 		$s = "    ";
-		for ($x = 0; $x < 8; $x++)
-			$s .= "-$x- ";
-		echo $s . PHP_EOL;
-		for ($y = 0; $y < 8; $y++) {
-			echo " $y: ";
-			for ($x = 0; $x < 8; $x++) {
-				echo $this->map[$x][$y]->Show($flag) . " ";
+		for ($qx = 0; $qx < 8; $qx++)
+			$s .= "-$qx- ";
+		println($s);
+		for ($qy = 0; $qy < 8; $qy++) {
+			$s = " $qy: ";
+			for ($qx = 0; $qx < 8; $qx++) {
+				$s .= $this->map[$qx][$qy]->Show($flag) . " ";
 			}
-			echo PHP_EOL;
+			println($s);
 		}
 	}
 
@@ -163,8 +175,8 @@ class T_GALAXY {
 	{
 		do {
 			$this->Clear();
-			for ($y = 0; $y < 8; $y++) {
-				for ($x = 0; $x < 8; $x++) {
+			for ($qy = 0; $qy < 8; $qy++) {
+				for ($qx = 0; $qx < 8; $qx++) {
 					// Generate Klingon
 					$r = mt_rand(0, 99);
 					if ($r > 98)
@@ -175,15 +187,15 @@ class T_GALAXY {
 						$k = 1;
 					else
 						$k = 0;
-					$this->AddKlingon($x, $y, $k);
+					$this->AddKlingon($qx, $qy, $k);
 
 					// Generate Base
 					$b = ((mt_rand(0, 99) > 96) ? 1 : 0);
-					$this->AddBase($x, $y, $b);
+					$this->AddBase($qx, $qy, $b);
 
 					// Generate Star
 					$s = mt_rand(1, 8);
-					$this->AddStar($x, $y, $s);
+					$this->AddStar($qx, $qy, $s);
 				}
 			}
 		} while ($this->total_klingons == 0 || $this->total_bases == 0);
@@ -195,11 +207,12 @@ class T_GALAXY {
  */
 class T_SPACE {
 	var $map = array(array(), array());
-	var $ent = "<E>";
-	var $kgn = ">K<";
-	var $bas = "+B+";
-	var $str = " * ";
-	var $spc = "   ";
+	var $icon = array(
+			'enterprise' => "<E>",
+			'klingon'    => ">K<",
+			'base'       => "+B+",
+			'star'       => " * ",
+			'space'      => "   ");
 
 	function __construct()
 	{
@@ -210,7 +223,7 @@ class T_SPACE {
 	{
 		for ($y = 0; $y < 8; $y++) {
 			for ($x = 0; $x < 8; $x++) {
-				$this->map[$x][$y] = $this->spc;
+				$this->SetSpace($x, $y);
 			}
 		}
 	}
@@ -221,23 +234,23 @@ class T_SPACE {
 	}
 	function SetSpace($x, $y)
 	{
-		$this->Set($x, $y, $this->spc);
+		$this->Set($x, $y, $this->icon['space']);
 	}
 	function SetEnterprise($x, $y)
 	{
-		$this->Set($x, $y, $this->ent);
+		$this->Set($x, $y, $this->icon['enterprise']);
 	}
 	function SetKlingon($x, $y)
 	{
-		$this->Set($x, $y, $this->kgn);
+		$this->Set($x, $y, $this->icon['klingon']);
 	}
 	function SetBase($x, $y)
 	{
-		$this->Set($x, $y, $this->bas);
+		$this->Set($x, $y, $this->icon['base']);
 	}
 	function SetStar($x, $y)
 	{
-		$this->Set($x, $y, $this->str);
+		$this->Set($x, $y, $this->icon['star']);
 	}
 	function Get($x, $y)
 	{
@@ -245,41 +258,51 @@ class T_SPACE {
 	}
 	function IsSpace($x, $y)
 	{
-		return ($this->map[$x][$y] == $this->spc);
+		return $this->IsObj($x, $y, 'space');
+	}
+	function IsObj($x, $y, $obj)
+	{
+		return ($this->map[$x][$y] == $this->icon[$obj]);
 	}
 	function FindEmptySlot(&$x, &$y)
 	{
-		debugecho("FindEmptySlot($x,$y)");
 		do {
 			$x = mt_rand(0, 7);
 			$y = mt_rand(0, 7);
-		} while ($this->Get($x, $y) != $this->spc);
+		} while ($this->Get($x, $y) != $this->icon['space']);
+		debugecho("FindEmptySlot($x,$y)");
 	}
 
 	function Create($sx, $sy, $k, $b, $s)
 	{
-		debugecho("T_SPACE::Create()");
+		debugecho("T_SPACE::Create($sx,$sy,$k,$b,$s)");
 		$this->Clear();
 
 		// Set Enterprise at sx, sy
-		$this->map[$sx][$sy] = $this->ent;
+		if ($sx < 0 && $sy < 0)
+			$this->FindEmptySlot($sx, $sy);
+		$this->SetEnterprise($sx, $sy);
 
 		// Set Klingons
+		InitKlingons();
 		for ($i = 0; $i < $k; $i++) {
 			$this->FindEmptySlot($x, $y);
-			$this->Set($x, $y, $this->kgn);
+			$this->SetKlingon($x, $y);
+			MakeKlingon($i, $x, $y);
+		}
+		for ($i = 0; $i < $k; $i++) {
 		}
 
 		// Set Base
 		if ($b != 0) {
 			$this->FindEmptySlot($x, $y);
-			$this->Set($x, $y, $this->bas);
+			$this->SetBase($x, $y);
 		}
 
 		// Set Stars
 		for ($i = 0; $i < $s; $i++) {
 			$this->FindEmptySlot($x, $y);
-			$this->Set($x, $y, $this->str);
+			$this->SetStar($x, $y);
 		}
 	}
 
@@ -289,8 +312,7 @@ class T_SPACE {
 			if ($v >= 0 && $v < 8) {
 				for ($h = $x - 1; $h <= $x + 1; $h++) {
 					if ($h >= 0 && $h < 8) {
-						echo "$h,$v ";
-						if ($this->map[$h][$v] == $obj)
+						if ($this->IsObj($h, $v, $obj))
 							return true;	// match
 					}
 				}
@@ -303,7 +325,12 @@ class T_SPACE {
 		println("--- --- --- --- --- --- --- ---");
 		for ($y = 0; $y < 8; $y++) {
 			for ($x = 0; $x < 8; $x++) {
-				echo $this->map[$x][$y] . " ";
+				$obj = $this->Get($x, $y);
+				if ($obj == $this->icon['klingon']) {
+					if (!IsKlingonAliveByXY($x, $y))
+						$obj = $this->icon['space']	;
+				}
+				echo $obj . ' ';
 			}
 			echo PHP_EOL;
 		}

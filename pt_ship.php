@@ -12,7 +12,8 @@ class T_SHIP
 	var $icon;
 	var $energy;
 	var $default_energy;
-	var $sx, $sy;
+	var $sx;
+	var $sy;
 
 	function __construct($icon, $def_engy)
 	{
@@ -20,6 +21,37 @@ class T_SHIP
 		$this->default_energy = $this->energy = $def_engy;
 		$this->sx = 0;
 		$this->sy = 0;
+	}
+
+	function Create($sx, $sy)
+	{
+		$this->sx = $sx;
+		$this->sy = $sy;
+		$this->ReCharge();
+	}
+
+	function ReCharge()
+	{
+		$this->energy = $this->default_energy;
+	}
+
+	function Destroy()
+	{
+		$this->energy = -1;
+	}
+
+	function IsAlive()
+	{
+		return ($this->energy > 0);
+	}
+
+	function DebugShow()
+	{
+		println("icon            $this->icon");
+		println("energy          $this->energy");
+		println("default_energy  $this->default_energy");
+		println("sx,sy           $this->sx, $this->sy");
+		println("IsAlive         " . ($this->IsAlive() ? "TRUE":"FALSE"));
 	}
 }
 
@@ -33,60 +65,80 @@ class T_ENTERPRISE extends T_SHIP
 	var $space;
 	var $shield;
 	var $default_shield;
-	var $time;
-	var $time_left;
-	var $qx, $qy;
+	var $qx;
+	var $qy;
+	var $torpedoes;
+	var $spend;
 
 	function __construct($galaxy, $space)
 	{
 		parent::__construct("<E>", 4000);
 		$this->galaxy = $galaxy;
 		$this->space  = $space;
-		$this->shield = 0;
-		$this->default_shield = 0;
-		$this->time = 0;
-		$this->time_left = 0;
-		$this->qx = 0;
-		$this->qy = 0;
+		$this->shield = $this->default_shield = 0;
+		$this->qx = $this->qy = 0;
+		$this->spend = 0;
 	}
 
 	function Create()
 	{
-		$this->time = (mt_rand(0, 19) + 20) * 100;
-		$this->time_left = 30;
+		parent::Create(mt_rand(0, 7), mt_rand(0, 7));
 		$this->qx = mt_rand(0, 7);
 		$this->qy = mt_rand(0, 7);
-		$this->sx = mt_rand(0, 7);
-		$this->sy = mt_rand(0, 7);
+		$this->ReCharge();
 	}
 
+	function ReCharge()
+	{
+		parent::ReCharge();
+		$this->shield = 0;
+		$this->torpedoes = 10;	// default
+	}
 	function EnterNewQuadrant()
 	{
-		debugecho("EnterNewQuadrant()");
+		debugecho("EnterNewQuadrant($this->qx,$this->qy)");
 		$k = $this->galaxy->GetKlingon($this->qx, $this->qy);
 		$b = $this->galaxy->GetBase($this->qx, $this->qy);
 		$s = $this->galaxy->GetStar($this->qx, $this->qy);
 		$this->space->Create($this->sx, $this->sy, $k, $b, $s);
+		$this->galaxy->Watched($this->qx, $this->qy);
 	}
 
 	function WarpIn()
 	{
+		debugecho("WarpIn($this->sx, $this->sy)");
 		$this->space->SetSpace($this->sx, $this->sy);
 	}
 	function WarpOut()
 	{
+		debugecho("WarpOut($this->sx, $this->sy)");
 		$this->space->SetEnterprise($this->sx, $this->sy);
 	}
+	function CheckCondition()
+	{
+		if (SearchNaighbor($this->sx, $this->sy))
+			return "DOCKED";
+		if ($this->galaxy->IsCombatArea($this->qx, $this->qy))
+			return "RED";
+		if ($this->energy < $this->default_energy * 0.1)
+			return "YELLOW";
+		return "GREEN";
+	}
+
 	function DebugShow()
 	{
-		println("QX, QY          $this->qx, $this->qy");
-		println("SX, SY          $this->sx, $this->sx");
-		println("SHIELD          $this->shield");
-		println("DEFAULT SHILED  $this->default_shield");
-		println("ENERGY          $this->energy");
-		println("DEFAULT ENERGY  $this->default_energy");
-		println("TIME            $this->time");
-		println("TIME LEFT       $this->time_left");
+		println(sprintf("STARDATE            %5d", GetTime()));
+		println(sprintf("CONDITION          %6s", $this->CheckCondition()));
+		println(sprintf("QUADRANT          %3d,%3d", $this->qx,$this->qy));
+		println(sprintf("SECTOR            %3d,%3d", $this->sx,$this->sy));
+		println(sprintf("ENERGY             %6s", $this->energy));
+		println(sprintf("PHOTON TORPEDOES      %3d", $this->torpedoes));
+		println(sprintf("SHIELD             %6d", $this->shield));
+	}
+
+	function ResetTime()
+	{
+		$this->spend = 0;
 	}
 }
 
@@ -113,5 +165,12 @@ class T_KLINGON extends T_SHIP
 	{
 		parent::__construct(">K<", 200);
 	}
+	
+	function Create($sx, $sy)
+	{
+		debugecho("T_KLINGON::Create($sx, $sy)");
+		parent::Create($sx, $sy);
+	}
+
 }
 ?>
