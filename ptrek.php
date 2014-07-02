@@ -36,12 +36,12 @@ $Cosmos = array('galaxy'     => $Galaxy,
 $nav	= new T_NAV("WARP ENGINES", $Cosmos);
 $srs    = new T_SRS("S.R. SENSORS", $Cosmos);
 $lrs    = new T_LRS("L.R. SENSORS", "GetQuadrant", $Galaxy);
-$pha	= new T_PHA("PHASER CNTRL");
+$pha	= new T_PHA("PHASER CNTRL", $Cosmos);
 $tor	= new T_TOR("PHOTON TUBES", $Cosmos);
 $dam    = new T_DAM("DAMAGE CNTRL", "DispDamage");
-$shi	= new T_SHI("SHIELD CNTRL");
-$com	= new T_COM("COMPUTER    ", null, $Galaxy);
-$device = array('0'=>$nav, $srs, $lrs, $pha, $tor, $dam, $shi, $com);
+$shi	= new T_SHI("SHIELD CNTRL", $Enterprise);
+$com	= new T_COM("COMPUTER    ", null, $Cosmos);
+$device = array('0'=>$nav, $srs, $lrs, $pha, $tor, $shi, $dam, $com);
 
 $Time = new T_TIME();
 
@@ -127,6 +127,13 @@ echo <<< CommandHelp
 CommandHelp;
 	}
 
+	// Timer
+	if ($Enterprise->spend > 0) {
+		if ($Time->Elasped($Enterprise->spend)) {
+			die('Time Over');
+		}
+
+	}
 
 	// all klingons are destroyed?
 	if ($Galaxy->total_klingons <= 0) {
@@ -186,15 +193,27 @@ function InitKlingons()
 		$Klingons[$i]->Destroy();
 	}
 }
-function MakeKlingon($i, $x, $y)
+function MakeKlingon($n, $x, $y)
 {
 	global $Klingons;
-	$Klingons[$i]->Create($x, $y);
+	$Klingons[$n]->Create($x, $y);
+}
+function GetKlingonPos($n)
+{
+	global $Klingons;
+	$sx = $sy = -1;
+	if (IsKlingonAlive($n)) {
+		$sx = $Klingons[$n]->sx;
+		$sy = $Klingons[$n]->sy;
+	}
+	return array($sx, $sy);
 }
 
 function FindKlingonByXY($sx, $sy)
 {
 	global $Klingons;
+	$sx = int($sx);
+	$sy = int($sy);
 	for ($i = 0; $i < 3; $i++) {
 		if ($Klingons[$i]->sx == $sx && $Klingons[$i]->sy == $sy)
 			return $i;
@@ -216,16 +235,41 @@ function IsKlingonAlive($n)
 	return $Klingons[$n]->IsAlive();	// true: alive / false: dead
 }
 
+function HitKlingon($n, $p)
+{
+	global $Klingons;
+	$Klingons[$n]->energy -= $p;
+}
+
+function GetKlingonPower($n)
+{
+	global $Klingons;
+	return $Klingons[$n]->energy;
+}
+
 // called from T_TOR::BlockOut()
+/* sx, sy : sector positon
+ * if (sx < 0) then sy = klingon number
+ */
 function DestroyKlingon($sx, $sy)
 {
 	global $Enterprise, $Klingons, $Galaxy, $Space;
-	if (($i = FindKlingonByXY($sx, $sy)) >= 0) {
-		println("*** KLINGON DESTROYED ***");
-		$Klingons[$i]->Destroy();
-		$Space->SetSpace($sx, $sy);
-		$Galaxy->DelKlingon($Enterprise->qx, $Enterprise->qy);
+	if ($sx < 0) {
+		$i = $sy;
+		$sx = $Klingons[$i]->sx;
+		$sy = $Klingons[$i]->sy;
 	}
+	else {
+		if (($i = FindKlingonByXY($sx, $sy)) < 0)
+		return;
+	}
+
+	println("*** KLINGON DESTROYED ***");
+	$Klingons[$i]->Destroy();
+	$Space->SetSpace($sx, $sy);
+	$Galaxy->DelKlingon($Enterprise->qx, $Enterprise->qy);
+
+	debugecho("FIndKlingonByXY($sx,$sy) --> $i");
 }
 
 function DestroyBase($sx, $sy)
@@ -248,11 +292,21 @@ function SearchNaighbor($sx, $sy, $obj = 'base')
 	return $Space->SearchNaighbor($sx, $sy, $obj);
 }
 
+
+// Timer Related
 function GetTime()
 {
 	global $Time;
 	return $Time->TimeLeft();	
 }
+
+function SpendTime($t)
+{
+	global $Enterprise;
+	debugecho("SpendTime()");
+	$Enterprise->SpendTime($t);
+}
+
 
 // Debug
 function DebugDirectQuadrantMove()

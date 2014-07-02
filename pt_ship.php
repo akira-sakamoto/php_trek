@@ -40,6 +40,10 @@ class T_SHIP
 		$this->energy = -1;
 	}
 
+	function Hit($e) {
+		$this->energy -= $e;
+	}
+
 	function IsAlive()
 	{
 		return ($this->energy > 0);
@@ -140,6 +144,11 @@ class T_ENTERPRISE extends T_SHIP
 	{
 		$this->spend = 0;
 	}
+
+	function SpendTime($t)
+	{
+		$this->spend += $t;
+	}
 }
 
 
@@ -172,5 +181,10 @@ class T_KLINGON extends T_SHIP
 		parent::Create($sx, $sy);
 	}
 
+	function Destroy()
+	{
+		parent::Destroy();
+		println(sprintf("KLINGON AT SECTOR %d,%d DESTROYED ****", $this->sx, $this->sy));
+	}
 }
 ?>
