@@ -17,10 +17,16 @@ class T_DEVICE {
 		debugecho("__construct($name, $func)");
 	}
 
+	function GetFactor(&$c1, &$w1) 
+	{
+		$c1 = $w1 = 0;
+		return true;
+	}
+
 	function action()
 	{
 		debugecho($this->name . "()");
-		if ($this->damage > 0) {
+		if ($this->GetDamage() > 0) {
 			echo "$this->name DAMAGED" . PHP_EOL;
 			return false;
 		}
@@ -32,6 +38,11 @@ class T_DEVICE {
 	function report()
 	{
 		echo "$this->name $this->damage" . PHP_EOL;
+	}
+
+	function GetDamage()
+	{
+		return $this->damage;
 	}
 }
 
@@ -45,6 +56,7 @@ class T_PHYSICAL extends T_DEVICE
 	var $VectorX = array('1' => 1, 1, 0, -1, -1, -1, 0, 1, 1);
 	var $VectorY = array('1' => 0, -1, -1, -1, 0, 1, 1, 1, 0);
 	var $Cosmos;
+	var $ActionTime;
 
 	function __construct($name, $cosmos)
 	{
@@ -54,16 +66,10 @@ class T_PHYSICAL extends T_DEVICE
 
 	function SetVector(&$vx, &$vy, $c1)
 	{
-		$c2 = int($c1);
+		$c2 = int($c1) % count($this->VectorX);
 		$vx = $this->VectorX[$c2] + ($this->VectorX[$c2 + 1] - $this->VectorX[$c2]) * ($c1 - $c2);
 		$vy = $this->VectorY[$c2] + ($this->VectorY[$c2 + 1] - $this->VectorY[$c2]) * ($c1 - $c2);
 		debugecho("SetVector: $vx, $vy, $c1, $c2");
-	}
-
-	function GetFactor(&$c1, &$w1) 
-	{
-		$c1 = $w1 = 0;
-		return true;
 	}
 
 	function OutSpace($vx, $vy, $w)
@@ -103,7 +109,10 @@ class T_PHYSICAL extends T_DEVICE
 		$enterprise = $this->Cosmos['enterprise'];
 		$space      = $this->Cosmos['space'];
 
-		$w = $w1;
+		// Spend Time
+		if (($w = $w1) > 1)
+			SpendTime($this->ActionTime);
+
 		$sx = $enterprise->sx;
 		$sy = $enterprise->sy;
 		$this->SetVector($vx, $vy, $c1);
@@ -116,18 +125,20 @@ class T_PHYSICAL extends T_DEVICE
 			$sx += $vx;
 			$sy += $vy;
 
-			$this->ShowMessage(2, $sx, $sy);
+			$sx1 = int($sx);
+			$sy1 = int($sy);
+			$this->ShowMessage(2, $sx1, $sy1);
 
-			$retX = RangeCheck($sx);
-			$retY = RangeCheck($sy);
+			$retX = RangeCheck($sx1);
+			$retY = RangeCheck($sy1);
 			if (!$retX || !$retY) {
 				// warp or stop
 				return $this->OutSpace($vx, $vy, $w1);
 			}
 			else {
-				if (!$space->IsSpace($sx, $sy)) {
+				if (!$space->IsSpace($sx1, $sy1)) {
 					// blocked
-					$this->BlockOut($sx, $sy);
+					$this->BlockOut($sx1, $sy1);
 					$sx = $x0;
 					$sy = $y0;
 					break;
@@ -135,9 +146,10 @@ class T_PHYSICAL extends T_DEVICE
 			}
 		} while ($w1 > 0);
 
+
 		// return sx, sy
-		debugecho("action($sx,$sy)");
-		return array($sx, $sy);
+		debugecho("action($sx1,$sy1)");
+		return array($sx1, $sy1);
 	}
 }
 
@@ -146,6 +158,11 @@ class T_PHYSICAL extends T_DEVICE
 /* T_NAV Navigation Device and Control
  */
 class T_NAV extends T_PHYSICAL {
+	function __construct($name, $cosmos)
+	{
+		parent::__construct($name, $cosmos);
+		$this->ActionTime = 1;
+	}
 	function GetFactor(&$c1, &$w1)
 	{
 		// input course and warp factor
@@ -223,9 +240,8 @@ class T_NAV extends T_PHYSICAL {
 		}
 		else
 			debugecho("xy == null");
+
 		$enterprise->WarpOut();
-
-
 	}
 
 }
@@ -289,12 +305,21 @@ class T_LRS extends T_DEVICE {
 
 }
 
-class T_TOR extends T_PHYSICAL {
+class T_TOR extends T_PHYSICAL
+{
+	function __construct($name, $cosmos)
+	{
+		parent::__construct($name, $cosmos);
+		$this->ActionTime = 0;
+	}
 
 	function GetFactor(&$c1, &$w1)
 	{
-		if (($c1 = input("TORPEDOE COURSE (1-9): ") * 1.0) == 0)
+		if (($c1 = input("TORPEDOE COURSE (1-9): ")) == 0)
 			return false;
+		if ($c1 > 9)
+			$c1 %= 9;
+		$c1 *= 1.0;
 		$w1 = 1.0;		// torpedoe's power
 		return true;
 	}
@@ -354,12 +379,97 @@ class T_TOR extends T_PHYSICAL {
 	}
 }
 
-class T_PHA extends T_DEVICE {
 
+/* T_PHA - PHASER CONTROL
+ */
+class T_PHA extends T_DEVICE {
+	var $cosmos;
+
+	function __construct($name, $cosmos)
+	{
+		parent::__construct($name);
+		$this->cosmos = $cosmos;
+	}
+
+	function action()
+	{
+		global $com;
+		parent::action();
+
+		$enterprise = $this->cosmos['enterprise'];
+		$galaxy = $this->cosmos['galaxy'];
+		$klingons = $this->cosmos['klingon'];
+
+		do {
+			if ($com->GetDamage() > 0)
+				println("COMPUTER FAILURE HAMPERS ACCURACY");
+
+			println("PHASERS LOCKED ON TARGET.  ENERGY AVAILABLE = $enterprise->energy");
+			if (($egy = input("NUMBER OF UNITS TO FIRE: ")) <= 0)
+				return;
+		} while ($enterprise->energy < $egy);
+
+		$enterprise->energy -= $egy;
+
+		// klingon's action
+
+		if ($com->GetDamage() > 0)
+			$egy *= mt_rand(1, 100) / 100;
+		
+		$numklingon = $galaxy->GetKlingon($enterprise->qx, $enterprise->qy);
+		for ($i = 0; $i < 3; $i++) {
+			if (IsKlingonAlive($i)) {
+				$xy = GetKlingonPos($i);
+				$kx = $xy[0];
+				$ky = $xy[1];
+				$fn = sqrt(($kx - $enterprise->sx) * ($kx - $enterprise->sx) + ($ky - $enterprise->sy) * ($ky - $enterprise->sy));
+				$h = 1;
+				$h = ($egy / $numklingon / $fn * (2 * $h));
+				HitKlingon($i, $h);
+
+				debugecho("kx,ky: $kx,$ky / ex,ey: $enterprise->sx,$enterprise->sy / fn: $fn");
+				debugecho("numklingon: $numklingon / egy: $egy / h: $h");
+
+				println(sprintf("%4d UNIT HIT ON KLINGON AT SECTOR %d,%d (%3d LEFT)", $h, $kx, $ky, GetKlingonPower($i)));
+
+				if (!IsKlingonAlive($i)) {
+					DestroyKlingon(-1, $i);		// destroy klingon by number
+				}
+			}
+		}
+	}
 }
 
-class T_SHI extends T_DEVICE {
 
+class T_SHI extends T_DEVICE {
+	var $enterprise;
+
+	function __construct($name, $enterprise)
+	{
+		parent::__Construct($name);
+		$this->enterprise = $enterprise;
+	}
+
+	function GetFactor(&$c)
+	{
+		$p = $this->enterprise->energy + $this->enterprise->shield;
+		if (($c = input("ENERGY AVAILABLE = $p   NUMBER OF UNITS TO SHIELD: ")) <= 0)
+			return; false;
+		return true;
+	}
+
+	function action()
+	{
+		parent::action();
+
+		do {
+			if (!$this->GetFactor($shi))
+				return;
+		} while ($this->enterprise->energy + $this->enterprise->shield < $shi);
+
+		$this->enterprise->energy += ($this->enterprise->shield - $shi);
+		$this->enterprise->shield = $shi;
+	}
 }
 
 class T_DAM extends T_DEVICE {
@@ -367,20 +477,140 @@ class T_DAM extends T_DEVICE {
 }
 
 class T_COM extends T_DEVICE {
-	var $galaxy;
+	var $cosmos;
 	var $flag;
-	function __construct($name, $func, $galaxy)
+	function __construct($name, $func, $cosmos)
 	{
 		parent::__construct($name, $func);
-		$this->galaxy = $galaxy;
+		$this->cosmos = $cosmos;
 		$this->flag   = false;	// Galaxy Map display flag
+	}
+
+	function GetFactor(&$c)
+	{
+		if (($c = input("COMPUTER ACTIVE AND AWAITING COMMAND ")) == "")
+			return false;
+		return true;
 	}
 
 	function action()
 	{
 		parent::action();
-		$this->galaxy->ShowMap($this->flag);
+
+		if (!$this->GetFactor($c))
+			return;
+
+		switch ($c) {
+			case '0':
+				$galaxy = $this->cosmos['galaxy'];
+				$galaxy->ShowMap($this->flag);
+				break;
+
+			case '1':
+				$this->StatusReport();
+				break;
+
+			case '2':
+				$this->PhotonTorpedoData();
+				break;
+
+			default:
+echo <<< CommandHelp
+FUNCTIONS AVAILABLE FROM COMPUTER
+   0 = COMULATIVE GALACTIC RECORD
+   1 = STATUS REPORT
+   2 = PHOTON TORPEDO DATA			
+
+CommandHelp;
+		}
 	}
+
+	function StatusReport()
+	{
+		$galaxy = $this->cosmos['galaxy'];
+		$k = $galaxy->total_klingons;
+		$b = $galaxy->total_bases;
+
+		println();
+		println("   STATUS REPORT");
+		println("NUMBER OF KLINGONS LEFT  = $k");
+		println("NUMBER OF STARDATES LEFT = " . GetTime());
+		println("NUMBER OF STARBASES LEFT = $b");
+	}
+
+	function PhotonTorpedoData()
+	{
+		debugecho("PhotonTorpedoData");
+		$galaxy = $this->cosmos['galaxy'];
+		$e = $this->cosmos['enterprise'];
+		$k = $galaxy->GetKlingon($e->qx, $e->qy);
+		for ($i = 0; $i < $k; $i++) {
+			if (IsKlingonAlive($i)) {
+				$xy = GetKlingonPos($i);
+				$dirdest = $this->CalculateCourse($e->sx, $e->sy, $xy[0], $xy[1]);
+				println("DIRECTION = $dirdest[0]");
+				println("DISTANCE  = $dirdest[1]");
+			}
+		}
+
+		if (strtoupper(input("DO YOU WANT TO USE THE CALCULATOR ")) == 'YES') {
+			do {
+				println("YOU ARE AT QUADRANT ($e->qx, $e->qy)  SECTOR ($e->sx, $e->sy)");
+				println("SHIP 'SHIELD & TARGET' CORDINATES ARE");
+				$arg = explode(",", input());
+			} while (count($arg) != 4);
+			$dirdest = $this->CalculateCourse($arg[0], $arg[1], $arg[2], $arg[3]);
+			println("DIRECTION = $dirdest[0]");
+			println("DISTANCE  = $dirdest[1]");
+		}
+	}
+
+	function CalculateCourse($ex, $ey, $kx, $ky)
+	{
+		$dx = $kx - $ex;
+		$dy = $ey - $ky;
+
+		if ($dx < 0) {
+			if ($dy > 0)
+				$c1 = 3;
+			else
+				$c1 = 5;
+		}
+		elseif ($dy < 0)
+			$c1 = 7;
+		elseif ($dx > 0)
+			$c1 = 1;
+		elseif ($dy > 0)
+			$c1 = 3;
+		else {
+			if ($dx == 0)
+				return array(0, 0);
+			else
+				$c1 = 5;
+		}
+
+		if ($c1 == 1 || $c1 == 5) {
+			if (abs($dy) <= abs($dx)) {
+				$direction = $c1 + (abs($dy) / abs($dx));
+			}
+			else {
+				$direction = $c1 + ((abs($dy) - abs($dx) + abs($dy)) / abs($dy));
+			}
+		}
+		else {
+			if (abs($dy) >= abs($dx)) {
+				$direction = $c1 + (abs($dx) / abs($dy));
+			}
+			else {
+				$direction = $c1 + (((abs($dx) - abs($dy)) + abs($dx)) / abs($dx));
+			}
+		}
+
+		$distance = sqrt($dx * $dx + $dy * $dy);
+		return array($direction, $distance);
+	}
+
+
 }
 
 
