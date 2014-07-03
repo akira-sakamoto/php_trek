@@ -27,7 +27,7 @@ class T_DEVICE {
 	{
 		debugecho($this->name . "()");
 		if ($this->GetDamage() > 0) {
-			echo "$this->name DAMAGED" . PHP_EOL;
+			debugecho("$this->name DAMAGED");
 			return false;
 		}
 		if ($this->func != null)
@@ -256,18 +256,20 @@ class T_SRS extends T_DEVICE {
 		parent::__construct($name);
 		$this->Cosmos = $cosmos;
 	}
+
 	function action()
 	{
-		if (parent::action()) {
-			$space = $this->Cosmos['space'];
-			$space->Show();
-			$enterprise = $this->Cosmos['enterprise'];
-			debugecho("sx,sy = $enterprise->sx,$enterprise->sy");
-			$enterprise->DebugShow();
+		if (!parent::action()) {
+			println();
+			println("*** SHORT RANGE SENSORS ARE OUT ***");
+			println();
 		}
 		else {
-			println("SRS DAMAGED");
+			$space = $this->Cosmos['space'];
+			$space->Show();
 		}
+		$enterprise = $this->Cosmos['enterprise'];
+		$enterprise->DebugShow();
 	}
 
 }
@@ -285,16 +287,24 @@ class T_LRS extends T_DEVICE {
 
 	function action()
 	{
-		$xy = parent::action();
-		$x = $xy[0];
-		$y = $xy[1];
+		global $com;
+
+		if (!($xy = parent::action())) {
+			println("LONG RANGE SENSORS ARE INOPERABLE");
+			return;
+		}
+
+		$qx = $xy[0];
+		$qy = $xy[1];
+		println("LONG RANGE SENSOR SCAN FOR QUADRANT $qx,$qy");
 		echo "------ ----- ------" . PHP_EOL;
-		for ($v = $y - 1; $v <= $y + 1; $v++) {
-			for ($h = $x - 1; $h <= $x + 1; $h++) {
+		for ($v = $qy - 1; $v <= $qy + 1; $v++) {
+			for ($h = $qx - 1; $h <= $qx + 1; $h++) {
 				if ($v < 0 || $v >= 8 || $h < 0 || $h >= 8)
 					echo ": --- ";
 				else {
-					if ($this->GetDamage() <= 0)
+					// computer damaged
+					if ($com->GetDamage() <= 0)
 						$this->galaxy->Watched($h, $v);
 					echo ": " . $this->galaxy->Get($h, $v) . " ";
 				}
@@ -306,6 +316,9 @@ class T_LRS extends T_DEVICE {
 
 }
 
+
+/* Torpedoes
+ */
 class T_TOR extends T_PHYSICAL
 {
 	function __construct($name, $cosmos)
@@ -395,7 +408,11 @@ class T_PHA extends T_DEVICE {
 	function action()
 	{
 		global $com;
-		parent::action();
+	
+		if (!parent::action()) {
+			println("PHASER CONTROL IS DISABLED");
+			return;
+		}
 
 		$enterprise = $this->cosmos['enterprise'];
 		$galaxy = $this->cosmos['galaxy'];

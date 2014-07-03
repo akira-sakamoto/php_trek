@@ -42,10 +42,10 @@ $dam    = new T_DAM("DAMAGE CNTRL", "DispDamage");
 $shi	= new T_SHI("SHIELD CNTRL", $Enterprise);
 $com	= new T_COM("COMPUTER    ", null, $Cosmos);
 $device = array('0'=>$nav, $srs, $lrs, $pha, $tor, $shi, $dam, $com);
+$dam->Init($device);		// cannot set un-initialized variable by constructor
 
 $Time = new T_TIME();
 
-$dam->Init($device);		// cannot set by constructor
 
 CreateGalaxy();
 $Enterprise->EnterNewQuadrant();
@@ -382,6 +382,7 @@ function DebugParameters()
 {
 	global $Enterprise, $Galaxy;
 	global $device;
+	global $Time;
 
 	switch (input("Target: 1=Enterprise / 2=Klingon / 3=Timer / 0=exit ")) {
 		case '1':	// enterprise
@@ -409,11 +410,32 @@ function DebugParameters()
 			break;
 
 		case '2':	// klingon
-			if (strtoupper(input("Do you set klingon counter to zero ")))
-			$Galaxy->total_klingons = 0;
+			if (strtoupper(input("Do you set klingon counter to zero (Y/N) ")) == 'Y')
+				$Galaxy->total_klingons = 0;
 			break;
 
 		case '3':	// timer
+			$t = time();
+			$t1 = $t - $Time->rt_start;
+			println("0: Start Time        $Time->start_time");
+			println("1: Current Time      $Time->current_time");
+			println("2: Limit Time        $Time->limit_time");
+			println("   Real Start Time   $Time->rt_start");
+			println("   Real Current Time $t ($t1 Elasped)");
+
+			if (($dd = inputs("Option, Value = ")) != null) {
+				switch ($dd[0]) {
+					case '0':
+						$Time->start_time = $dd[1];
+						break;
+					case '1':
+						$Time->current_time = $dd[1];
+						break;
+					case '2':
+						$Time->limit_time = $dd[1];
+						break;
+				}
+			}
 			break;
 
 		default:
