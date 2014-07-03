@@ -294,7 +294,8 @@ class T_LRS extends T_DEVICE {
 				if ($v < 0 || $v >= 8 || $h < 0 || $h >= 8)
 					echo ": --- ";
 				else {
-					$this->galaxy->Watched($h, $v);
+					if ($this->GetDamage() <= 0)
+						$this->galaxy->Watched($h, $v);
 					echo ": " . $this->galaxy->Get($h, $v) . " ";
 				}
 			}
@@ -414,7 +415,7 @@ class T_PHA extends T_DEVICE {
 		// klingon's action
 
 		if ($com->GetDamage() > 0)
-			$egy *= mt_rand(1, 100) / 100;
+			$egy *= rnd(1);		// give random power loss
 		
 		$numklingon = $galaxy->GetKlingon($enterprise->qx, $enterprise->qy);
 		for ($i = 0; $i < 3; $i++) {
@@ -472,8 +473,26 @@ class T_SHI extends T_DEVICE {
 	}
 }
 
-class T_DAM extends T_DEVICE {
 
+/* T_DAM: Damage Control
+ * this logic is negative to the original
+ */
+class T_DAM extends T_DEVICE {
+	var $device;
+
+	function Init($device)
+	{
+		$this->device = $device;
+	}
+
+	function Repair()
+	{
+		foreach ($this->device as $d) {
+			if ($d->damage > 0)
+				$d->damege--;
+		}
+		unset($d);
+	}
 }
 
 class T_COM extends T_DEVICE {

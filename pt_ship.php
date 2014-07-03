@@ -19,20 +19,25 @@ class T_SHIP
 	{
 		$this->icon = $icon;
 		$this->default_energy = $this->energy = $def_engy;
-		$this->sx = 0;
-		$this->sy = 0;
+		$this->sx = -1;
+		$this->sy = -1;
 	}
 
 	function Create($sx, $sy)
 	{
-		$this->sx = $sx;
-		$this->sy = $sy;
+		$this->SetPosition($sx, $sy);
 		$this->ReCharge();
 	}
 
 	function ReCharge()
 	{
 		$this->energy = $this->default_energy;
+	}
+
+	function SetPosition($sx, $sy)
+	{
+		$this->sx = $sx;
+		$this->sy = $sy;
 	}
 
 	function Destroy()
@@ -98,6 +103,14 @@ class T_ENTERPRISE extends T_SHIP
 		$this->shield = 0;
 		$this->torpedoes = 10;	// default
 	}
+
+	function SetQuadrant($qx, $qy)
+	{
+		$this->qx = $qx;
+		$this->qy = $qy;
+		$this->galaxy->Watched($qx, $qy);
+	}
+	
 	function EnterNewQuadrant()
 	{
 		debugecho("EnterNewQuadrant($this->qx,$this->qy)");
@@ -184,7 +197,8 @@ class T_KLINGON extends T_SHIP
 	function Destroy()
 	{
 		parent::Destroy();
-		println(sprintf("KLINGON AT SECTOR %d,%d DESTROYED ****", $this->sx, $this->sy));
+		if ($this->sx >= 0 && $this->sy >= 0)
+			println(sprintf("KLINGON AT SECTOR %d,%d DESTROYED ****", $this->sx, $this->sy));
 	}
 }
 ?>

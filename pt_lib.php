@@ -3,17 +3,54 @@
  *   PHP-TREK Library
  */
 
+
+// if no input then return null
 function input($msg = '')
 {
-    if ($msg != '')
-        print $msg;
-    return trim(fgets(STDIN, 64));
+  if ($msg != '')
+    print $msg . "? ";
+  return trim(fgets(STDIN, 64));
 }
+
+function inputs($msg = '')
+{
+  if (($ret = input($msg)) != null) {
+    $ret = explode(",", $ret);
+    foreach ($ret as &$r) {
+      $r = trim($r);
+    }
+    unset($r);
+  }
+  return $ret;
+}
+
 
 /* PHP does not have int() */
 function int($n)
 {
   return floor($n);
+}
+
+
+/* BASIC互換の乱数
+ * 負: 乱数系列の初期化
+ *  0: 前回と同じ乱数値
+ * 正: 新しい乱数値
+ */
+function rnd($n)
+{
+  static $r = -1;
+
+  if ($r < 0)
+    srand(1);
+
+  if ($n < 0)
+    srand();
+  elseif ($n == 0) {
+    if ($r >= 0)
+      return $r;
+  }
+  return ($r = mt_rand(0, 65535) / 65536);
 }
 
 

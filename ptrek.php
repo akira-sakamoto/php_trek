@@ -45,6 +45,7 @@ $device = array('0'=>$nav, $srs, $lrs, $pha, $tor, $shi, $dam, $com);
 
 $Time = new T_TIME();
 
+$dam->Init($device);		// cannot set by constructor
 
 CreateGalaxy();
 $Enterprise->EnterNewQuadrant();
@@ -86,45 +87,31 @@ while (1) {
 			$device[$cmd]->action();
 			break;
 
-		case '10':	// direct quadrant move
-			DebugDirectQuadrantMove();
+		case '10':	// change important parameters
+			DebugParameters();
 			break;
 
-		case '11':	// direct sector move
-			DebugDirectSectorMove();
-			break;
-
-		case '12':	// debug echo on/off
+		case '11':	// debug echo on/off
 			DebugEchoSwitch();
 			break;
 
-		case '13':	// debug
+		case '12':	// debug
 			DebugDump();
 			break;
 
-		case '14':
+		case '13':
 			DebugObject();
 			break;
 
-		case '15':
-			$Galaxy->total_klingons = 0;
+		case '98':
+			ShowCommandList(true);
 			break;
 
 		case '99':
 			die('exit');
 
 		default:
-echo <<< CommandHelp
-0 = SET COURSE
-1 = SHORT RANGE SENSOR SCAN
-2 = LONG RANGE SENSOR SCAN
-3 = FIRE PHASERS
-4 = FIRE PHOTON TORPEDOES
-5 = SHIELD CONTROL
-6 = DAMAGE CONTROL REPORT
-7 = CALL ON LIBRARY COMPUTER
-
-CommandHelp;
+			ShowCommandList(false);
 	}
 
 	// Timer
@@ -160,13 +147,46 @@ function ShowInstructions()
 		print $str;
 }
 
-function DispDamage()
+// Show Command List
+// flag: true = show with debug command
+function ShowCommandList($flag)
+{
+	echo <<< CommandHelp
+ 0 = SET COURSE
+ 1 = SHORT RANGE SENSOR SCAN
+ 2 = LONG RANGE SENSOR SCAN
+ 3 = FIRE PHASERS
+ 4 = FIRE PHOTON TORPEDOES
+ 5 = SHIELD CONTROL
+ 6 = DAMAGE CONTROL REPORT
+ 7 = CALL ON LIBRARY COMPUTER
+
+CommandHelp;
+
+	if (!$flag)
+		return;
+
+	echo <<< DebugCommand
+10 = Debug Parameters
+11 = Debug Echo ON / OFF
+12 = Debug Dump
+13 = Debug Object
+98 = Show Debug Command List (this)
+99 = exit
+
+DebugCommand;
+}
+
+function DispDamage($n = 0)
 {
 	global $device;
 
 	println();
 	println("DAMAGE CONTROL REPORT:");
+	$i = 0;
 	foreach ($device as $d) {
+		if ($n > 0)
+			print($i++ . " : ");
 		println($d->name . "  " . $d->damage . "  " . (($d->damage > 0)?" DAMAGED":""));
 	}
 	unset($d);
@@ -312,14 +332,14 @@ function SpendTime($t)
 function DebugDirectQuadrantMove()
 {
 	global $Enterprise;
-	$Enterprise->qx = input("QX = ");
-	$Enterprise->qy = input("QY = ");
+	$xy = inputs("Qx,Qy = ");
+	$Enterprise->SetQuadrant($xy[0], $xy[1]);
 }
 function DebugDirectSectorMove()
 {
 	global $Enterprise;
-	$Enterprise->sx = input("SX = ");
-	$Enterprise->sy = input("SY = ");
+	$xy = inputs("Sx,Sy = ");
+	$Enterprise->SetPosition($xy[0], $xy[1]);
 }
 
 function DebugEchoSwitch()
@@ -356,5 +376,51 @@ function DebugDump()
 {
 	global $Cosmos;
 	var_dump($Cosmos);
+}
+
+function DebugParameters()
+{
+	global $Enterprise, $Galaxy;
+	global $device;
+
+	switch (input("Target: 1=Enterprise / 2=Klingon / 3=Timer / 0=exit ")) {
+		case '1':	// enterprise
+			switch (input("Object: 1=Quadrant / 2=Sector / 3=Energy / 4=Torpedoes / 5=Damage ")) {
+				case '1':
+					DebugDirectQuadrantMove();
+					break;
+				case '2':
+					DebugDirectSectorMove();
+					break;
+				case '3':
+					$Enterprise->energy = input("Energy = ");
+					break;
+				case '4':
+					$Enterprise->torpedoes = input("Torpedoes = ");
+					break;
+				case '5':
+					DispDamage(1);	// current status
+					while (($dd = inputs("Device, Damage = ")) != null) {
+						$device[$dd[0]]->damage = $dd[1];
+					}
+					DispDamage(1);	// new status
+					break;
+			}
+			break;
+
+		case '2':	// klingon
+			if (strtoupper(input("Do you set klingon counter to zero ")))
+			$Galaxy->total_klingons = 0;
+			break;
+
+		case '3':	// timer
+			break;
+
+		default:
+			return;
+	}
+
+
+
 }
 ?>
