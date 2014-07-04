@@ -102,6 +102,7 @@ class T_ENTERPRISE extends T_SHIP
 		parent::ReCharge();
 		$this->shield = 0;
 		$this->torpedoes = 10;	// default
+		RepairAll();
 	}
 
 	function SetQuadrant($qx, $qy)

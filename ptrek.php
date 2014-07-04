@@ -18,7 +18,6 @@ $Galaxy = new T_GALAXY();
 $Space  = new T_SPACE("MakeKlingon");
 
 $Enterprise = new T_ENTERPRISE($Galaxy, $Space);
-$Enterprise->Create();
 
 $Klingons = array(3);
 for ($i = 0; $i < 3; $i++) {
@@ -42,12 +41,20 @@ $dam    = new T_DAM("DAMAGE CNTRL", "DispDamage");
 $shi	= new T_SHI("SHIELD CNTRL", $Enterprise);
 $com	= new T_COM("COMPUTER    ", null, $Cosmos);
 $device = array('0'=>$nav, $srs, $lrs, $pha, $tor, $shi, $dam, $com);
+$devnam = array('nav' => $nav,
+				'srs' => $srs,
+				'lrs' => $lrs,
+				'pha' => $pha,
+				'tor' => $tor,
+				'shi' => $shi,
+				'dam' => $dam,
+				'com' => $com);
 $dam->Init($device);		// cannot set un-initialized variable by constructor
 
 $Time = new T_TIME();
 
-
 CreateGalaxy();
+$Enterprise->Create();
 $Enterprise->EnterNewQuadrant();
 $Time->Init();
 
@@ -76,7 +83,7 @@ while (1) {
 	$cmd = input(PHP_EOL . "COMMAND: ");
 
 	switch ($cmd) {
-		case '0':
+		case '0':	// nav
 		case '1':
 		case '2':
 		case '3':
@@ -327,6 +334,51 @@ function SpendTime($t)
 	$Enterprise->SpendTime($t);
 }
 
+
+// Damage Control Related
+function GetDamageByName($name)
+{
+	global $devnam;
+	return $devnum[$name]->GetDamage();
+}
+
+function DamageAndRepair()
+{
+	global $devnam, $device;
+
+	// repair first
+	foreach ($devnam as $d) {
+		$d->RepairDamage();
+	}
+	unset($d);
+
+	// generate damage
+	if (rnd(1) > 0.8) {
+		$r = mt_rand(0, count($device) - 1);
+		println();
+		println("DAMAGE CONTROL REPORT:");
+
+		if (rnd(1) < 0.5) {
+			$device[$r]->BeDamaged(rnd(1) * 5 + 1);
+			println($device[$r]->name . "  DAMAGED");
+		}
+		else {
+			$device[$r]->RepairDamage(rnd(1) * 5 + 1);
+			println($device[$r]->name . " STATE OF REPAIR IMPROVED");
+		}
+		println();
+	}
+	DispDamage();
+}
+
+function RepairAll()
+{
+	global $devnam;
+	foreach ($devnam as $d) {
+		$d->RepairDamage(-1);	// repair complete
+	}
+	unset($d);
+}
 
 // Debug
 function DebugDirectQuadrantMove()

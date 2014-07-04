@@ -23,15 +23,18 @@ class T_DEVICE {
 		return true;
 	}
 
-	function action()
+	function action($msg = null)
 	{
 		debugecho($this->name . "()");
-		if ($this->GetDamage() > 0) {
-			debugecho("$this->name DAMAGED");
-			return false;
+		if ($msg != null) {
+			if ($this->GetDamage() > 0) {
+				debugecho("$this->name DAMAGED");
+				println($msg);
+				return false;
+			}
+			if ($this->func != null)
+				return call_user_func($this->func);
 		}
-		if ($this->func != null)
-			return call_user_func($this->func);
 		return true;
 	}
 
@@ -43,6 +46,23 @@ class T_DEVICE {
 	function GetDamage()
 	{
 		return $this->damage;
+	}
+
+	function RepairDamage($d = 1)
+	{
+		if ($d < 0) {
+			$this->damage = 0;
+		}
+		else {
+			$this->damage -= $d;
+			if ($this->damage < 0)
+				$this->damage = 0;
+		}
+	}
+
+	function BeDamaged($d)
+	{
+		$this->damage += $d;
 	}
 }
 
@@ -98,9 +118,15 @@ class T_PHYSICAL extends T_DEVICE
 		}
 	}
 
-	function action()
+	function action($msg = null)
 	{
 		debugecho("T_PHYSICAL::action()");
+
+		if (!parent::action($msg)) {
+			debugecho("canceled");
+			return;
+		}
+
 		// get course and warp factor
 		$c1 = $w1 = -1;
 		if (!$this->GetFactor($c1, $w1))
@@ -149,7 +175,7 @@ class T_PHYSICAL extends T_DEVICE
 
 		// return sx, sy
 		debugecho("action($sx1,$sy1)");
-		return array($sx1, $sy1);
+		return array($sx1, $sy1);	// give last position in sector
 	}
 }
 
@@ -176,7 +202,7 @@ class T_NAV extends T_PHYSICAL {
 				if (($w1 = input("WARP FACTOR (0-8): ") * 1.0) == 0)
 					return false;
 			} while ($w1 < 0 || $w1 > 8);
-			if ($this->damage == 0 || $w1 <= 0.2)
+			if ($this->GetDamage() <= 0 || $w1 <= 0.2)
 				break;
 
 			println("WARP ENGINES ARE DAMAGED, MAXIMUM SPEED = WARP 0.2");
@@ -242,6 +268,15 @@ class T_NAV extends T_PHYSICAL {
 			debugecho("xy == null");
 
 		$enterprise->WarpOut();
+
+		// generate random damage
+		DamageAndRepair();
+
+		// docking
+		if ($enterprise->CheckCondition() == 'DOCKED') {
+			$enterprise->ReCharge();
+			debugecho("DOCKED");
+		}
 	}
 
 }
@@ -259,12 +294,7 @@ class T_SRS extends T_DEVICE {
 
 	function action()
 	{
-		if (!parent::action()) {
-			println();
-			println("*** SHORT RANGE SENSORS ARE OUT ***");
-			println();
-		}
-		else {
+		if (parent::action(PHP_EOL . "*** SHORT RANGE SENSORS ARE OUT ***" . PHP_EOL)) {
 			$space = $this->Cosmos['space'];
 			$space->Show();
 		}
@@ -289,8 +319,7 @@ class T_LRS extends T_DEVICE {
 	{
 		global $com;
 
-		if (!($xy = parent::action())) {
-			println("LONG RANGE SENSORS ARE INOPERABLE");
+		if (!($xy = parent::action(PHP_EOL . "LONG RANGE SENSORS ARE INOPERABLE" . PHP_EOL))) {
 			return;
 		}
 
@@ -377,19 +406,18 @@ class T_TOR extends T_PHYSICAL
 	function action()
 	{
 		$enterprise = $this->Cosmos['enterprise'];
-		if ($enterprise->torpedoes-- <= 0) {
+		if ($enterprise->torpedoes <= 0) {
 			println("ALL PHOTON TORPEDOES EXPENDED");
 			$enterprise->torpedoes = 0;
 			return;
 		}
 
-		$xy = parent::action();
-		if ($xy != null) {
-			debugecho("Hit at $xy[0],$xy[1]");
-		}
-		else {
+		if (($xy = parent::action("PHOTON TUBES ARE NOT OPERATIONAL")) == null) {
 			debugecho("Cansel input or torpedoe missed");
+			return;
 		}
+		debugecho("Hit at $xy[0],$xy[1]");
+		$enterprise->torpedoes--;
 	}
 }
 
@@ -409,10 +437,8 @@ class T_PHA extends T_DEVICE {
 	{
 		global $com;
 	
-		if (!parent::action()) {
-			println("PHASER CONTROL IS DISABLED");
+		if (!parent::action("PHASER CONTROL IS DISABLED"))
 			return;
-		}
 
 		$enterprise = $this->cosmos['enterprise'];
 		$galaxy = $this->cosmos['galaxy'];
@@ -478,7 +504,8 @@ class T_SHI extends T_DEVICE {
 
 	function action()
 	{
-		parent::action();
+		if (!parent::action("SHIELD CONTROL IS NON-OPERATIONAL"))
+			return;
 
 		do {
 			if (!$this->GetFactor($shi))
@@ -510,8 +537,16 @@ class T_DAM extends T_DEVICE {
 		}
 		unset($d);
 	}
+
+	function action()
+	{
+		parent::action("DAMAGE CONTROL REPORT IS NOT AVAILABLE");
+	}
 }
 
+
+/* T_COM: Library Computer
+ */
 class T_COM extends T_DEVICE {
 	var $cosmos;
 	var $flag;
@@ -531,7 +566,8 @@ class T_COM extends T_DEVICE {
 
 	function action()
 	{
-		parent::action();
+		if (!parent::action("COMPUTER DISABLED"))
+			return;
 
 		if (!$this->GetFactor($c))
 			return;
