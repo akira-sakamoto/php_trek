@@ -120,6 +120,13 @@ class T_ENTERPRISE extends T_SHIP
 		$s = $this->galaxy->GetStar($this->qx, $this->qy);
 		$this->space->Create($this->sx, $this->sy, $k, $b, $s);
 		$this->galaxy->Watched($this->qx, $this->qy);
+
+		if ($k > 0) {
+			if ($this->shield < 200) {
+				println("COMBAT AREA      CONDITION RED");
+				println("   SHIELDS DANGEROUSLY LOW");
+			}
+		}
 	}
 
 	function WarpIn()
@@ -195,11 +202,19 @@ class T_KLINGON extends T_SHIP
 		parent::Create($sx, $sy);
 	}
 
-	function Destroy()
+	function Destroy($disp = false)
 	{
 		parent::Destroy();
-		if ($this->sx >= 0 && $this->sy >= 0)
+		if ($disp && $this->sx >= 0 && $this->sy >= 0)
 			println(sprintf("KLINGON AT SECTOR %d,%d DESTROYED ****", $this->sx, $this->sy));
+	}
+
+	function action()
+	{
+		$sx = $this->sx;
+		$sy = $this->sy;
+		$e  = $this->energy;
+		println("Klingon $sx,$sy, $e");
 	}
 }
 ?>

@@ -8,12 +8,14 @@ class T_DEVICE {
 	var $name;
 	var $damage;
 	var $func;
+	var $ActionTime;
 
 	function __construct($name, $func = null)
 	{
 		$this->name = $name;
 		$this->damage = 0;
 		$this->func = $func;
+		$this->ActionTime = 0;	// default no time is needed
 		debugecho("__construct($name, $func)");
 	}
 
@@ -64,6 +66,11 @@ class T_DEVICE {
 	{
 		$this->damage += $d;
 	}
+
+	function Spend()
+	{
+		return $this->ActionTime;
+	}
 }
 
 
@@ -76,7 +83,6 @@ class T_PHYSICAL extends T_DEVICE
 	var $VectorX = array('1' => 1, 1, 0, -1, -1, -1, 0, 1, 1);
 	var $VectorY = array('1' => 0, -1, -1, -1, 0, 1, 1, 1, 0);
 	var $Cosmos;
-	var $ActionTime;
 
 	function __construct($name, $cosmos)
 	{
@@ -136,8 +142,7 @@ class T_PHYSICAL extends T_DEVICE
 		$space      = $this->Cosmos['space'];
 
 		// Spend Time
-		if (($w = $w1) > 1)
-			SpendTime($this->ActionTime);
+		// $this->ActionTime = (($w = $w1) > 1) ? 1 : 0;
 
 		$sx = $enterprise->sx;
 		$sy = $enterprise->sy;
@@ -234,6 +239,8 @@ class T_NAV extends T_PHYSICAL {
 		$enterprise->EnterNewQuadrant();
 		debugecho("after EnterNewQuadrant: $enterprise->sx,$enterprise->sy");
 
+		$this->ActionTime = 1;
+
 		return array($sx, $sy);
 	}
 
@@ -246,7 +253,7 @@ class T_NAV extends T_PHYSICAL {
 	function ShowMessage($n, $x = 0, $y = 0)
 	{
 		// do nothing
-		parent::ShowMessage($n, $x, $y);
+		parent::ShowMessage(0, $x, $y);
 	}
 
 	// NAV command main
@@ -256,6 +263,7 @@ class T_NAV extends T_PHYSICAL {
 		$enterprise = $this->Cosmos['enterprise'];
 		$enterprise->WarpIn();
 
+		$this->ActionTime = 0;	// inter quadrant move does not spend time
 		$xy = parent::action();
 
 		// show enterprise at new or previous position
@@ -323,8 +331,8 @@ class T_LRS extends T_DEVICE {
 			return;
 		}
 
-		$qx = $xy[0];
-		$qy = $xy[1];
+		$qx = int($xy[0]);
+		$qy = int($xy[1]);
 		println("LONG RANGE SENSOR SCAN FOR QUADRANT $qx,$qy");
 		echo "------ ----- ------" . PHP_EOL;
 		for ($v = $qy - 1; $v <= $qy + 1; $v++) {
@@ -353,7 +361,7 @@ class T_TOR extends T_PHYSICAL
 	function __construct($name, $cosmos)
 	{
 		parent::__construct($name, $cosmos);
-		$this->ActionTime = 0;
+		$this->ActionTime = 1;
 	}
 
 	function GetFactor(&$c1, &$w1)
@@ -384,12 +392,13 @@ class T_TOR extends T_PHYSICAL
 			DestroyKlingon($sx, $sy);
 		}
 		elseif ($space->IsObj($sx, $sy, 'base')) {
-			println("BASE DESTROYED");
+			println("*** STAR BASE DESTROYED ***  .......CONGRATULATIONS");
 			DestroyBase($sx, $sy);
 		}
 		elseif ($space->IsObj($sx, $sy, 'star')) {
-			println("STAR DESTROYED");
-			DestroyStar($sx, $sy);
+			println("YOU CAN'T DESTROY STARS SILLY");
+			// DestroyStar($sx, $sy);
+			$this->OutSpace();		// torpedoe missed
 		}
 		else {
 			$obj = $space->Get($sx, $sy);
@@ -431,6 +440,7 @@ class T_PHA extends T_DEVICE {
 	{
 		parent::__construct($name);
 		$this->cosmos = $cosmos;
+		$this->ActionTime = 1;
 	}
 
 	function action()
@@ -462,8 +472,7 @@ class T_PHA extends T_DEVICE {
 		
 		$numklingon = $galaxy->GetKlingon($enterprise->qx, $enterprise->qy);
 		for ($i = 0; $i < 3; $i++) {
-			if (IsKlingonAlive($i)) {
-				$xy = GetKlingonPos($i);
+			if (($xy = GetKlingonPos($i)) != null) {
 				$kx = $xy[0];
 				$ky = $xy[1];
 				$fn = sqrt(($kx - $enterprise->sx) * ($kx - $enterprise->sx) + ($ky - $enterprise->sy) * ($ky - $enterprise->sy));
@@ -617,8 +626,7 @@ CommandHelp;
 		$e = $this->cosmos['enterprise'];
 		$k = $galaxy->GetKlingon($e->qx, $e->qy);
 		for ($i = 0; $i < $k; $i++) {
-			if (IsKlingonAlive($i)) {
-				$xy = GetKlingonPos($i);
+			if (($xy = GetKlingonPos($i)) != null) {
 				$dirdest = $this->CalculateCourse($e->sx, $e->sy, $xy[0], $xy[1]);
 				println("DIRECTION = $dirdest[0]");
 				println("DISTANCE  = $dirdest[1]");

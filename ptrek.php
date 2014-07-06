@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 /* ptrek.php
  */
@@ -54,22 +55,23 @@ $dam->Init($device);		// cannot set un-initialized variable by constructor
 $Time = new T_TIME();
 
 CreateGalaxy();
-$Enterprise->Create();
-$Enterprise->EnterNewQuadrant();
-$Time->Init();
 
 // Show Mission
+$Time->Init();
 $t = $Time->TimeLeft();
 println("YOU MUST DESTROY $Galaxy->total_klingons KLINGONS" .
         " IN $t STARDATES" .
         " WITH $Galaxy->total_bases STARBASES");
 
+$Enterprise->Create();
+$Enterprise->EnterNewQuadrant();
 
 // debug
 // $Enterprise->DebugShow();
 
 // Main Loop
-while (1) {
+$gameover = false;
+while(1) {
 	// Enterprise Status
 	if ($Enterprise->CheckCondition() == 'DOCKED')
 		$Enterprise->ReCharge();
@@ -92,6 +94,7 @@ while (1) {
 		case '6':
 		case '7':
 			$device[$cmd]->action();
+			SpendTime($device[$cmd]->spend());
 			break;
 
 		case '10':	// change important parameters
@@ -119,15 +122,36 @@ while (1) {
 
 		default:
 			ShowCommandList(false);
+			break;
 	}
 
+	$Time->DebugShowTime();
+
+	// 終了条件判定
+	// 1. 時間切れ
+	// 2. Klingon殲滅
+	// 3. エネルギー切れ
+
 	// Timer
+	debugecho("Spend: $Enterprise->spend");
 	if ($Enterprise->spend > 0) {
 		if ($Time->Elasped($Enterprise->spend)) {
+			println("IT IS STARDATE $Time->current_time");
+			println("THERE ARE STILL $Galaxy->total_klingons KLINGONS BATTLE CRUISERS");
 			die('Time Over');
+		}
+	
+		// Klingon's turn
+		KlingonsTurn();
+		if ($Enterprise->energy <0) {
+			println("THE ENTERPRISE HAS BEEN DESTROYED.  THE FEDERATION WILL BE CONQUERED");
+			println("THERE ARE STILL $Galaxy->total_klingons KLINGON BATTLE CRUISERS");
+			break;
 		}
 
 	}
+
+
 
 	// all klingons are destroyed?
 	if ($Galaxy->total_klingons <= 0) {
@@ -140,10 +164,24 @@ while (1) {
 		$t1 = time();
 		println("YOUR ACTUAL TIME OF MISSION = ".
 			int(($t1 - $Time->rt_start) / 60) . " MINUTES");
+		break;
 	}
-		
+
+	if ($Enterprise->energy <= 0) {
+		if ($Enterprise->shield > 0) {
+			println("YOU HAVE $Enterprise->energy UNITS OF ENERGY");
+			println("SUGGEST YOU GET SOME FROM YOUR SHIELDS WHICH HAVE $Enterprise->shield UNITS LEFT");
+		}
+		else {
+			println("THE ENTERPRISE IS DEAD IN SPACE.  IF YOU SURVIVE ALL IMPENDING");
+			println("ATTACK YOU WILL BE DEMOTED TO THE RANK OF PRIVATE");
+			break;
+		}
+	}
 
 }
+println("END");
+
 
 
 // Show Instructions
@@ -228,12 +266,12 @@ function MakeKlingon($n, $x, $y)
 function GetKlingonPos($n)
 {
 	global $Klingons;
-	$sx = $sy = -1;
 	if (IsKlingonAlive($n)) {
 		$sx = $Klingons[$n]->sx;
 		$sy = $Klingons[$n]->sy;
+		return array($sx, $sy);
 	}
-	return array($sx, $sy);
+	return null;
 }
 
 function FindKlingonByXY($sx, $sy)
@@ -274,6 +312,21 @@ function GetKlingonPower($n)
 	return $Klingons[$n]->energy;
 }
 
+function KlingonsTurn()
+{
+	global $Enterprise, $Klingons, $Galaxy;
+
+	debugecho("Klingon's Turn")	;
+	$k = $Galaxy->GetKlingon($Enterprise->qx, $Enterprise->qy);
+	for ($i = 0; $i < $k; $i++) {
+		if (($xy = GetKlingonPos($i)) != null) {
+			debugecho("Klingon $i: $xy[0], $xy[1]");
+			$Klingons[$i]->action();
+		}
+	}
+}
+
+
 // called from T_TOR::BlockOut()
 /* sx, sy : sector positon
  * if (sx < 0) then sy = klingon number
@@ -292,7 +345,7 @@ function DestroyKlingon($sx, $sy)
 	}
 
 	println("*** KLINGON DESTROYED ***");
-	$Klingons[$i]->Destroy();
+	$Klingons[$i]->Destroy(true);
 	$Space->SetSpace($sx, $sy);
 	$Galaxy->DelKlingon($Enterprise->qx, $Enterprise->qy);
 
@@ -462,8 +515,9 @@ function DebugParameters()
 			break;
 
 		case '2':	// klingon
-			if (strtoupper(input("Do you set klingon counter to zero (Y/N) ")) == 'Y')
-				$Galaxy->total_klingons = 0;
+			if (($k = input("Klingons left = $Galaxy->total_klingons ")) != "") {
+				$Galaxy->total_klingons = $k;
+			}
 			break;
 
 		case '3':	// timer

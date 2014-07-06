@@ -7,6 +7,9 @@ include_once("pt_lib.php");
 
 /**
 * T_TIME
+*            |-- limit --|
+* start_time ----- ^ ---- limit_time (start + limit)
+*                current
 */
 class T_TIME
 {
@@ -44,6 +47,16 @@ class T_TIME
 		return ($this->limit_time < $this->current_time);
 	}
 
+	function DebugShowTime()
+	{
+		debugecho("DebugShowTime()");
+		$t = time();
+		$dt = $t - $this->rt_start;
+		debugecho("StartTime    = $this->start_time");
+		debugecho("Current Time = $this->current_time");
+		debugecho("Limit Time   = $this->limit_time");
+		debugecho("Rial Time    = $this->rt_start / $t ($dt)");
+	}
 }
 
 
