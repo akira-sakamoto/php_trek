@@ -170,6 +170,12 @@ class T_ENTERPRISE extends T_SHIP
 	{
 		$this->spend += $t;
 	}
+
+	function ShieldDown($e)
+	{
+		$this->shield -= $e;
+		debugecho("ShieldDown $this->shield ($e)");
+	}
 }
 
 
@@ -211,10 +217,9 @@ class T_KLINGON extends T_SHIP
 
 	function action()
 	{
-		$sx = $this->sx;
-		$sy = $this->sy;
-		$e  = $this->energy;
-		println("Klingon $sx,$sy, $e");
+		$h = ($this->energy / PhaserPower($this->sx, $this->sy) * (2 * rnd(1)));
+		debugecho("Klingon $this->sx,$this->sy, $h");
+		HitByKlingon($h);
 	}
 }
 ?>

@@ -151,8 +151,6 @@ while(1) {
 
 	}
 
-
-
 	// all klingons are destroyed?
 	if ($Galaxy->total_klingons <= 0) {
 		println();
@@ -167,6 +165,7 @@ while(1) {
 		break;
 	}
 
+	// no enegy
 	if ($Enterprise->energy <= 0) {
 		if ($Enterprise->shield > 0) {
 			println("YOU HAVE $Enterprise->energy UNITS OF ENERGY");
@@ -322,8 +321,22 @@ function KlingonsTurn()
 		if (($xy = GetKlingonPos($i)) != null) {
 			debugecho("Klingon $i: $xy[0], $xy[1]");
 			$Klingons[$i]->action();
+
 		}
 	}
+}
+
+function HitByKlingon($e)
+{
+	debugecho("HitByKlingon($e)");
+	global $Enterprise;
+	$Enterprise->ShieldDown($e);
+}
+
+function PhaserPower($kx, $ky)
+{
+	global $Enterprise;
+	return sqrt(($kx - $Enterprise->sx) * ($kx - $Enterprise->sx) + ($ky - $Enterprise->sy) * ($ky - $Enterprise->sy));
 }
 
 
@@ -454,9 +467,6 @@ function DebugEchoSwitch()
 	$DEBUGECHO = true;
 	debugecho("DEBUGECHO = " . ($next?"ON":"OFF"));
 	$DEBUGECHO = $next;
-
-	global $Space;
-	var_dump($Space);
 }
 
 function DebugObject()

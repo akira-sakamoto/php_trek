@@ -475,12 +475,11 @@ class T_PHA extends T_DEVICE {
 			if (($xy = GetKlingonPos($i)) != null) {
 				$kx = $xy[0];
 				$ky = $xy[1];
-				$fn = sqrt(($kx - $enterprise->sx) * ($kx - $enterprise->sx) + ($ky - $enterprise->sy) * ($ky - $enterprise->sy));
 				$h = 1;
-				$h = ($egy / $numklingon / $fn * (2 * $h));
+				$h = ($egy / $numklingon / PhaserPower($kx, $ky) * (2 * $h));
 				HitKlingon($i, $h);
 
-				debugecho("kx,ky: $kx,$ky / ex,ey: $enterprise->sx,$enterprise->sy / fn: $fn");
+				debugecho("kx,ky: $kx,$ky / ex,ey: $enterprise->sx,$enterprise->sy");
 				debugecho("numklingon: $numklingon / egy: $egy / h: $h");
 
 				println(sprintf("%4d UNIT HIT ON KLINGON AT SECTOR %d,%d (%3d LEFT)", $h, $kx, $ky, GetKlingonPower($i)));
