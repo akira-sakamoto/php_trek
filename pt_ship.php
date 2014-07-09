@@ -114,7 +114,8 @@ class T_ENTERPRISE extends T_SHIP
 	
 	function EnterNewQuadrant()
 	{
-		debugecho("EnterNewQuadrant($this->qx,$this->qy)");
+		
+		debugecho("\x1b[31mEnterNewQuadrant($this->qx,$this->qy)");
 		$k = $this->galaxy->GetKlingon($this->qx, $this->qy);
 		$b = $this->galaxy->GetBase($this->qx, $this->qy);
 		$s = $this->galaxy->GetStar($this->qx, $this->qy);

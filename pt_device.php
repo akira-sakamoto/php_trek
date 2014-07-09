@@ -138,6 +138,7 @@ class T_PHYSICAL extends T_DEVICE
 		if (!$this->GetFactor($c1, $w1))
 			return null;	// array(-1, -1);
 
+		$w0 = $w1;		// w0: original warp factor
 		$enterprise = $this->Cosmos['enterprise'];
 		$space      = $this->Cosmos['space'];
 
@@ -150,10 +151,9 @@ class T_PHYSICAL extends T_DEVICE
 		$this->ShowMessage(1);
 
 		do {
-			$w1 -= 0.125;
-			$x0 = $sx;
+			$x0 = $sx;	// previous position
 			$y0 = $sy;
-			$sx += $vx;
+			$sx += $vx;	// new position
 			$sy += $vy;
 
 			$sx1 = int($sx);
@@ -164,7 +164,8 @@ class T_PHYSICAL extends T_DEVICE
 			$retY = RangeCheck($sy1);
 			if (!$retX || !$retY) {
 				// warp or stop
-				return $this->OutSpace($vx, $vy, $w1);
+
+				return $this->OutSpace($vx, $vy, $w0);
 			}
 			else {
 				if (!$space->IsSpace($sx1, $sy1)) {
@@ -175,7 +176,7 @@ class T_PHYSICAL extends T_DEVICE
 					break;
 				}
 			}
-		} while ($w1 > 0);
+		} while (($w1 -= 0.125) > 0);
 
 
 		// return sx, sy
@@ -222,6 +223,8 @@ class T_NAV extends T_PHYSICAL {
 	{
 		$enterprise = $this->Cosmos['enterprise'];
 		debugecho("Out from sector $enterprise->sx,$enterprise->sy, $w");
+		if ($w < 1)
+			$w = 1;
 		$n = int($w + 0.5);	// quadrant power
 		$qx = $enterprise->qx + ($vx * $n);
 		$qy = $enterprise->qy + ($vy * $n);
@@ -361,7 +364,7 @@ class T_TOR extends T_PHYSICAL
 	function __construct($name, $cosmos)
 	{
 		parent::__construct($name, $cosmos);
-		$this->ActionTime = 1;
+		$this->ActionTime = 0;
 	}
 
 	function GetFactor(&$c1, &$w1)
@@ -440,7 +443,7 @@ class T_PHA extends T_DEVICE {
 	{
 		parent::__construct($name);
 		$this->cosmos = $cosmos;
-		$this->ActionTime = 1;
+		$this->ActionTime = 0;
 	}
 
 	function action()
